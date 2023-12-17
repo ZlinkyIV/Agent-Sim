@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use agent_simulator::prelude::*;
 
 struct Agent { }
@@ -19,7 +21,7 @@ fn main() {
     let agent = Agent { };
 
     let state = State::default()
-        .add(&agent);
+        .add(Rc::new(agent));
 
     let simulation = SimulationManager::new(state);
 }

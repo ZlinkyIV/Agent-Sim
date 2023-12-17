@@ -5,33 +5,46 @@ pub mod prelude {
 
 
 pub mod state {
+    use std::mem;
+    use std::rc::Rc;
     use crate::object::Object;
 
-    pub struct SimulationManager<'a> {
-        simulation_state: State<'a>,
+    pub struct SimulationManager {
+        simulation_state: State,
     }
 
-    impl<'a> SimulationManager<'a> {
-        pub fn new(state: State<'a>) -> Self {
+    impl SimulationManager {
+        pub fn new(state: State) -> Self {
             Self {
                 simulation_state: state,
             }
         }
 
-        // pub fn step(&mut self) {
-        //     todo!()
-        // }
+        pub fn step(&mut self) {
+            // self.simulation_state = self.simulation_state.next()
+
+            // Rust doesn't like it when `next` takes ownership of the state. 
+            // Doing `self.simulation_state = self.simulation_state.next()` triggers E0507
+            // This does the same thing by setting `self.simulation_state` to an
+            // intermediate, default state.
+            // The SAFETY comment of `replace` says it won't ever panic...
+            self.simulation_state = mem::take(&mut self.simulation_state).next();
+        }
     }
 
     
-    #[derive(Default)]
-    pub struct State<'a> { 
-        objects: Vec<&'a dyn Object>,
+    #[derive(Default, Clone)]
+    pub struct State { 
+        objects: Vec<Rc<dyn Object>>,
     }
 
-    impl<'a> State<'a> {
-        /// Add an object to the state.
-        pub fn add(mut self, object: &'a impl Object) -> Self {
+    impl State {
+        pub fn next(mut self) -> Self {
+            // Just don't change the state for now
+            self
+        }
+
+        pub fn add(mut self, object: Rc<dyn Object>) -> Self {
             self.objects.push(object);
             self
         }
@@ -39,7 +52,7 @@ pub mod state {
         /// Add multiple objects to state.
         pub fn add_many<I>(mut self, objects: I) -> Self
         where
-            I: IntoIterator<Item = &'a dyn Object>,
+            I: IntoIterator<Item = Rc<dyn Object>>,
         {
             self.objects.extend(objects);
             self
