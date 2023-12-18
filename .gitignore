@@ -1,0 +1,11 @@
+# Ignore all files by default, but scan all directories
+*
+!*/
+
+
+!*/target/*
+!*.rs
+
+!Cargo.lock
+!Cargo.toml
+!.gitignore
