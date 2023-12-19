@@ -2,26 +2,23 @@ use std::rc::Rc;
 
 use agent_simulator::prelude::*;
 
-struct Agent { }
-impl Object for Agent {
-    fn name(&self) -> String {
-        "Agent".to_string()
-    }
-
-    fn position(&self) -> Position {
-        Position::default()
-    }
-
-    fn dimensions(&self) -> Dimensions {
-        Dimensions::new(0.1, 1.0)
-    }
+fn make_agent() -> Agent {
+    Agent::new(
+        "Agent".to_string(),
+        Position::default(),
+        Box::new(|state| {
+            (Action::DoNothing, Cooldown::Forever)
+        }),
+    )
 }
 
 fn main() {
-    let agent = Agent { };
+    let agent = make_agent();
+    let rock = objects::Rock::new(Position::default());
 
     let state = State::default()
-        .add(Rc::new(agent));
+        .add(Rc::new(agent))
+        .add(Rc::new(rock));
 
     let simulation = SimulationManager::new(state);
 }

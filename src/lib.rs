@@ -97,7 +97,7 @@ pub mod object {
     }
 
 
-    pub enum Duration {
+    pub enum Cooldown {
         Forever,
         Time(u16),
     }
@@ -113,16 +113,52 @@ pub mod object {
         /// Dimensions of the object
         fn dimensions(&self) -> Dimensions;
 
-        /// Move object.
-        /// 
-        /// Immovable objects ignore this call (default behavior).
-        fn move_position(&mut self, position: &Position) { }
-
         /// Now's the time for you to think, Mr. Rock!
         /// Will you do nothing forever like every other boring rock,
         /// or will you actually do something with your life?
-        fn think(&mut self, state: &State) -> (Action, Duration) {
-            (Action::DoNothing, Duration::Forever)
+        fn think(&mut self, state: &State) -> Cooldown {
+            Cooldown::Forever
+        }
+    }
+
+
+    pub struct Agent {
+        name: String,
+        position: Position,
+        think: Box<dyn FnMut(&State) -> (Action, Cooldown)>,
+    }
+
+    impl Agent {
+        pub fn new(
+            name: String,
+            position: Position,
+            think: Box<dyn FnMut(&State) -> (Action, Cooldown)>,
+        ) -> Self {
+            Self { name, position, think }
+        }
+    }
+
+    impl Object for Agent {
+        fn name(&self) -> String {
+            self.name.to_string()
+        }
+
+        fn position(&self) -> Position {
+            self.position
+        }
+
+        fn dimensions(&self) -> Dimensions {
+            Dimensions::new(1.25, 80.0)
+        }
+
+        fn think(&mut self, state: &State) -> Cooldown {
+            let (action, cooldown) = (self.think)(state);
+
+            match action {
+                Action::DoNothing => (),
+            }
+
+            cooldown
         }
     }
 
@@ -133,6 +169,13 @@ pub mod object {
         pub struct Rock {
             position: Position,
         }
+
+        impl Rock {
+            pub fn new(position: Position) -> Rock {
+                Rock { position }
+            }
+        }
+
         impl Object for Rock {
             fn name(&self) -> String {
                 "Rock".to_string()
