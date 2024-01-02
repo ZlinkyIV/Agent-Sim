@@ -1,10 +1,9 @@
 use std::rc::Rc;
-
 use agent_simulator::prelude::*;
 
 fn make_agent() -> Agent {
     Agent::new(
-        "Agent".to_string(),
+        // "Agent".to_string(),
         Position::default(),
         Box::new(|state| {
             (Action::DoNothing, Cooldown::Forever)
@@ -14,11 +13,14 @@ fn make_agent() -> Agent {
 
 fn main() {
     let agent = make_agent();
-    let rock = objects::Rock::new(Position::default());
+    let rock = prebuilt_entities::Rock::new(Position::default());
 
-    let state = State::default()
-        .add(Rc::new(agent))
-        .add(Rc::new(rock));
-
-    let simulation = SimulationManager::new(state);
+    let state = {
+        let mut new_state = State::default();
+        new_state.add(Rc::new(agent));
+        new_state.add(Rc::new(rock));
+        new_state
+    };
+    
+    println!("{:?}", state);
 }

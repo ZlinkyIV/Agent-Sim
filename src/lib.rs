@@ -1,91 +1,83 @@
 pub mod prelude {
     pub use crate::state::*;
-    pub use crate::object::*;
+    pub use crate::entity::*;
 }
 
 
 pub mod state {
-    use std::mem;
     use std::rc::Rc;
-    use crate::object::Object;
-
-    pub struct SimulationManager {
-        simulation_state: State,
-    }
-
-    impl SimulationManager {
-        pub fn new(state: State) -> Self {
-            Self {
-                simulation_state: state,
-            }
-        }
-
-        pub fn step(&mut self) {
-            // self.simulation_state = self.simulation_state.next()
-
-            // Rust doesn't like it when `next` takes ownership of the state. 
-            // Doing `self.simulation_state = self.simulation_state.next()` triggers E0507
-            // This does the same thing by setting `self.simulation_state` to an
-            // intermediate, default state.
-            // The SAFETY comment of `replace` says it won't ever panic...
-            self.simulation_state = mem::take(&mut self.simulation_state).next();
-        }
-    }
-
+    use crate::entity::SimulationEntity;
     
-    #[derive(Default, Clone)]
+    #[derive(Default, Clone, Debug)]
     pub struct State { 
-        objects: Vec<Rc<dyn Object>>,
+        entities: Vec<Rc<dyn SimulationEntity>>,
     }
 
     impl State {
-        pub fn next(mut self) -> Self {
-            // Just don't change the state for now
-            self
+        pub fn next(&mut self) {
+            // Don't change the state for now
         }
 
-        pub fn add(mut self, object: Rc<dyn Object>) -> Self {
-            self.objects.push(object);
-            self
+        pub fn add(&mut self, entity: Rc<dyn SimulationEntity>) {
+            self.entities.push(entity);
         }
 
-        /// Add multiple objects to state.
-        pub fn add_many<I>(mut self, objects: I) -> Self
+        /// Add multiple entities to state.
+        pub fn add_many<I>(&mut self, entities: I)
         where
-            I: IntoIterator<Item = Rc<dyn Object>>,
+            I: IntoIterator<Item = Rc<dyn SimulationEntity>>,
         {
-            self.objects.extend(objects);
-            self
+            self.entities.extend(entities);
         }
     }
 }
 
 
-pub mod object {
+pub mod entity {
+    use std::fmt::Debug;
+
     use crate::state::State;
 
-
     /// A position (meters from origin)
-    #[derive(Clone, Copy, Default)]
-    pub struct Position(f32, f32, f32);
+    #[derive(Clone, Copy, Default, Debug)]
+    pub struct Position(f32, f32);
 
-    /// Dimensions of an object: size in meters, weight in kilos
-    #[derive(Clone, Copy, Default)]
+    /// Size and weight of an entity
+    #[derive(Clone, Copy, Default, Debug)]
     pub struct Dimensions {
-        /// Size of object in meters
-        size: f32,
-        
-        /// Weight of object in kilos
-        weight: f32,
+        /// Cube size of entity in meters
+        pub size: f32,
+        /// Weight of entity in kilos
+        pub weight: f32,
     }
-    impl Dimensions {
-        pub fn new(size: f32, weight: f32) -> Self {
-            Self { size, weight }
+
+
+    pub enum Cooldown {
+        Forever,
+        Time(u16),
+    }
+
+
+    /// A simulation entity
+    pub trait SimulationEntity: Debug {
+        /// Position of the entity
+        fn position(&self) -> Position;
+
+        /// Dimensions of the entity
+        fn dimensions(&self) -> Dimensions;
+
+        /// Now's the time for you to think, Mr. Rock!
+        /// Will you do nothing forever like every other boring rock,
+        /// or will you actually do something with your life?
+        /// 
+        /// Returns: Cooldown before next `think` call
+        fn think(&mut self, state: &State) -> Cooldown {
+            Cooldown::Forever
         }
     }
 
 
-    /// An action an object can take... I guess. Still working on that idea.
+    /// An action an agent can take
     pub enum Action {
         DoNothing,
         // MoveTo(Position),
@@ -97,58 +89,29 @@ pub mod object {
     }
 
 
-    pub enum Cooldown {
-        Forever,
-        Time(u16),
-    }
-
-
-    /// A simulation object
-    pub trait Object {
-        fn name(&self) -> String;
-
-        /// Position of the object
-        fn position(&self) -> Position;
-
-        /// Dimensions of the object
-        fn dimensions(&self) -> Dimensions;
-
-        /// Now's the time for you to think, Mr. Rock!
-        /// Will you do nothing forever like every other boring rock,
-        /// or will you actually do something with your life?
-        fn think(&mut self, state: &State) -> Cooldown {
-            Cooldown::Forever
-        }
-    }
-
-
     pub struct Agent {
-        name: String,
+        // name: String,
         position: Position,
         think: Box<dyn FnMut(&State) -> (Action, Cooldown)>,
     }
 
     impl Agent {
         pub fn new(
-            name: String,
+            // name: String,
             position: Position,
             think: Box<dyn FnMut(&State) -> (Action, Cooldown)>,
         ) -> Self {
-            Self { name, position, think }
+            Self { /* name, */ position, think }
         }
     }
 
-    impl Object for Agent {
-        fn name(&self) -> String {
-            self.name.to_string()
-        }
-
+    impl SimulationEntity for Agent {
         fn position(&self) -> Position {
             self.position
         }
 
         fn dimensions(&self) -> Dimensions {
-            Dimensions::new(1.25, 80.0)
+            Dimensions { size: 1.25, weight: 80.0 }
         }
 
         fn think(&mut self, state: &State) -> Cooldown {
@@ -162,10 +125,20 @@ pub mod object {
         }
     }
 
+    // Skip the think function
+    impl Debug for Agent {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            f.debug_struct("Agent")
+                .field("position", &self.position)
+                .finish()
+        }
+    }
 
-    pub mod objects {
+
+    pub mod prebuilt_entities {
         use super::*;
 
+        #[derive(Debug)]
         pub struct Rock {
             position: Position,
         }
@@ -176,17 +149,13 @@ pub mod object {
             }
         }
 
-        impl Object for Rock {
-            fn name(&self) -> String {
-                "Rock".to_string()
-            }
-
+        impl SimulationEntity for Rock {
             fn position(&self) -> Position {
                 self.position
             }
 
             fn dimensions(&self) -> Dimensions {
-                Dimensions::new(0.75, 1.0)
+                Dimensions { size: 0.75, weight: 1.0 }
             }
         }
     }
