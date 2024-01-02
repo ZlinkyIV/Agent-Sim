@@ -5,27 +5,30 @@ pub mod prelude {
 
 
 pub mod state {
-    use std::rc::Rc;
+    use std::{rc::Rc, cell::RefCell};
     use crate::entity::SimulationEntity;
     
     #[derive(Default, Clone, Debug)]
     pub struct State { 
-        entities: Vec<Rc<dyn SimulationEntity>>,
+        entities: Vec<Rc<RefCell<dyn SimulationEntity>>>,
     }
 
     impl State {
         pub fn next(&mut self) {
-            // Don't change the state for now
+            for entity in &self.entities {
+                entity.borrow_mut().think(&self);
+            }
+
         }
 
-        pub fn add(&mut self, entity: Rc<dyn SimulationEntity>) {
+        pub fn add(&mut self, entity: Rc<RefCell<dyn SimulationEntity>>) {
             self.entities.push(entity);
         }
 
         /// Add multiple entities to state.
         pub fn add_many<I>(&mut self, entities: I)
         where
-            I: IntoIterator<Item = Rc<dyn SimulationEntity>>,
+            I: IntoIterator<Item = Rc<RefCell<dyn SimulationEntity>>>,
         {
             self.entities.extend(entities);
         }
@@ -40,7 +43,7 @@ pub mod entity {
 
     /// A position (meters from origin)
     #[derive(Clone, Copy, Default, Debug)]
-    pub struct Position(f32, f32);
+    pub struct Position(pub f32, pub f32);
 
     /// Size and weight of an entity
     #[derive(Clone, Copy, Default, Debug)]
@@ -80,7 +83,7 @@ pub mod entity {
     /// An action an agent can take
     pub enum Action {
         DoNothing,
-        // MoveTo(Position),
+        MoveTo(Position),
     }
     impl Default for Action {
         fn default() -> Self {
@@ -119,6 +122,7 @@ pub mod entity {
 
             match action {
                 Action::DoNothing => (),
+                Action::MoveTo(position) => self.position = position
             }
 
             cooldown
